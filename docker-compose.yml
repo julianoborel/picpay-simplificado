@@ -1,0 +1,59 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: picpay-app
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      - picpay-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  webserver:
+    image: nginx:alpine
+    container_name: picpay-webserver
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/site.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - picpay-network
+    depends_on:
+      - app
+
+  mysql:
+    image: mysql:8.0
+    container_name: picpay-mysql
+    ports:
+        - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - picpay-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  mysql_data:
+
+networks:
+  picpay-network:
+    driver: bridge
